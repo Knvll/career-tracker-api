@@ -1,5 +1,6 @@
-from expense_tracker.expense_tracker import calculate_total
+from expense_tracker.expense_tracker import save_expenses,calculate_total,read_expenses
 import pytest
+import json
 
 def test_calculate_total():
     expenses =[
@@ -70,3 +71,102 @@ def test_calculate_total_small_values():
     result = calculate_total(expenses)
     
     assert result == pytest.approx(0.3)
+
+def test_save_expenses(tmp_path):
+    file_path = tmp_path / "expenses.json"
+
+    expenses = [
+        {"description": "Coffee", "amount": 5.5},
+        {"description": "Gas", "amount": 40.0},
+    ]
+
+    save_expenses(expenses, file_path)
+
+    assert file_path.exists()
+
+    with open(file_path, "r") as file:
+        saved_expenses = json.load(file)
+
+    assert saved_expenses == expenses
+
+
+def test_read_expenses_valid_file(tmp_path):
+    file_path = tmp_path / "expenses.json"
+
+    expenses = [
+        {"description": "Coffee", "amount": 5.5},
+        {"description": "Gas", "amount": 40.0},
+    ]
+
+    with open(file_path, "w") as file:
+        json.dump(expenses, file)
+
+    result = read_expenses(file_path)
+
+    assert result == expenses
+
+def test_read_expenses_missing_file(tmp_path):
+    file_path = tmp_path / "no_expense.json"
+
+    result = read_expenses(file_path)
+
+    assert result == []
+    assert file_path.exists()
+
+    with open(file_path, "r") as file:
+        saved_data = json.load(file)
+
+    assert saved_data == []
+
+def test_read_expenses_invalid_content(tmp_path):
+    file_path = tmp_path / "expenses.json"
+
+
+    with open(file_path, "w") as file:
+        file.write('{invalid json')
+
+    result = read_expenses(file_path)
+
+    assert result == []
+    assert file_path.exists()
+
+    with open(file_path, "r") as file:
+        saved_data = json.load(file)
+
+    assert saved_data == []
+
+def test_read_expenses_invalid_structure(tmp_path):
+    file_path = tmp_path / "expenses.json"
+
+    expenses = [
+        {"descriptioytrtyn": "Coffee", "amount": 5.5},
+        {"description": "Gas", "amount": 40.0},
+    ]
+    
+    with open(file_path, "w") as file:
+        json.dump(expenses, file)
+
+    with pytest.raises(ValueError):
+        read_expenses(file_path)
+
+def test_save_expenses_overwrites_existing_file(tmp_path):
+    file_path = tmp_path / "expenses.json"
+
+    original_expenses = [
+        {"description": "Coffee", "amount": 5.5}
+    ]
+
+    new_expenses = [
+        {"description": "Coffee", "amount": 5.5},
+        {"description": "Nuts", "amount": 10.11}
+    ]
+
+    with open(file_path, "w") as file:
+        json.dump(original_expenses, file)
+
+    save_expenses(new_expenses, file_path)
+
+    with open(file_path, "r") as file:
+        saved_expenses = json.load(file)
+
+    assert saved_expenses == new_expenses
