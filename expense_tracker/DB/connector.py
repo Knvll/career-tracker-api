@@ -43,7 +43,6 @@ def insert_expense(db_path, description, amount, date, category):
         """)
 
         connection.commit()
-
         
     except Exception:
         connection.rollback()
