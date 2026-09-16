@@ -1,6 +1,7 @@
 import json
 from datetime import datetime
 import shutil
+from database.connector import insert_expense, initialize_database, get_all_expenses, calculate_total
 
 welcome_message = """
 Expense Tracker
@@ -9,71 +10,6 @@ Expense Tracker
     2. Show Expenses
     3. Show total
     4. Exit"""
-
-def save_expenses(expenses, file_path="expenses.json"):
-    with open(file_path, "w") as file:
-        json.dump(expenses, file, indent=4)
-
-def create_backup(file_path="expenses.json"):
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-
-    backup_path = f"{file_path}.{timestamp}.bak"
-
-    shutil.copy(file_path, backup_path)
-
-def read_expenses(file_path="expenses.json"):
-    try:
-        with open(file_path, "r") as file:
-            expenses = json.load(file)
-
-        return validate_expenses_format(expenses)
-
-    except FileNotFoundError:
-        expenses = []
-        save_expenses(expenses, file_path)
-        return expenses
-    
-    except json.JSONDecodeError:
-        print('Expenses file is corrupted.')
-        create_backup(file_path)
-        print('Backup created')
-
-        expenses = []
-        save_expenses(expenses, file_path)
-        return expenses
-
-def validate_expenses_format(expenses, file_path="expenses.json"):
-    if not isinstance(expenses, list):
-        create_backup(file_path)
-        raise ValueError("Invalid expenses file structure.")
-
-    for expense in expenses:
-        if not isinstance(expense, dict):
-            create_backup(file_path)
-            raise ValueError("Invalid expense structure.")
-
-        if "description" not in expense or "amount" not in expense:
-            create_backup(file_path)
-            raise ValueError("Invalid expense structure.")
-
-        if not isinstance(expense['description'], str):
-            create_backup(file_path)
-            raise ValueError("Invalid expense structure.")
-
-        if not expense["description"].strip():
-            create_backup(file_path)
-            raise ValueError("Invalid expense structure.")
-
-        if not isinstance(expense['amount'], (float, int)):
-            create_backup(file_path)
-            raise ValueError("Invalid expense structure.")
-
-        if expense["amount"] <= 0:
-            create_backup(file_path)
-            raise ValueError("Invalid expense structure.")
-
-    return expenses
-
 
 def show_menu():
     print(welcome_message)
@@ -94,52 +30,44 @@ def get_valid_amount():
         except ValueError:
             print("Invalid amount. Please enter a number.")
 
-def get_valid_description():
+def get_valid_value(value_name):
     while True:
-        description = input("Description: ").strip()
+        value = input(f"{value_name}: ").strip()
 
-        if not description:
-            print("Enter a valid description.")
+        if not value:
+            print("Enter a valid {value_name}.")
             continue
 
-        return description
+        return value
 
-def add_expense(expenses, file_path="expenses.json"):
-    expenses.append({
-                'description': get_valid_description(),
-                'amount': get_valid_amount()
-            })
-    save_expenses(expenses, file_path)
+def add_expense():
+    insert_expense('expenses.db', get_valid_value('Description'), get_valid_amount(), get_valid_value('Date'), get_valid_value('Category'))
     
 
 def show_expenses(expenses):
-    if expenses:
-        for index, expense in enumerate(expenses, start=1):
-                print(f'{index}. {expense["description"]} - ${expense["amount"]:.2f}')
-    else:
-        print('No expenses registered.')
-
-def calculate_total(expenses):
-    total = 0
     for expense in expenses:
-        total += expense["amount"]
-
-    return total
+        print(f'{expense[0]}. {expense[1]} - ${expense[2]:.2f} - {expense[3]} - {expense[4]}')
 
 def expense_calculator():
-    expenses = read_expenses()
+    initialize_database('expenses.db')
+
     while True:
         show_menu()
         selection = input("Select an option: ")
 
         if selection == "1":
-            add_expense(expenses)
+            add_expense()
             print("Expense added successfully.")
         elif selection == "2":
-            show_expenses(expenses)
-        elif selection == "3":
+            expenses = get_all_expenses('expenses.db')
             if expenses:
-                print(f'Total expenses: ${calculate_total(expenses):.2f}')
+                show_expenses(expenses)
+            else:
+                print('No expenses registered.')
+        elif selection == "3":
+            expense_total = calculate_total('expenses.db')[0]
+            if expense_total:
+                print(f'Total expenses: ${expense_total:.2f}')
             else:
                 print('No expenses registered.')
         elif selection == "4":
