@@ -1,5 +1,6 @@
 import sqlite3
 import json
+from .validator import validate_order_field
 
 
 def get_connection(db_path):
@@ -56,13 +57,14 @@ def insert_expense(db_path, description, amount, date, category):
         connection.close()
     return inserted_id
 
-def get_all_expenses(db_path):
+def get_all_expenses(db_path, order_field="id"):
+    validate_order_field(order_field)
     connection = get_connection(db_path)
     cursor = connection.cursor()
-    query = """
+    query = f"""
         SELECT id, description, amount, date, category
         FROM expenses
-        ORDER BY id ASC
+        ORDER BY {order_field} ASC
     """
 
     all_expenses = cursor.execute(query).fetchall()
